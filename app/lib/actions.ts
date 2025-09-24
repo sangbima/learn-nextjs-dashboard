@@ -27,7 +27,7 @@ export type State = {
   errors?: {
     customerId?: string[];
     amount?: string[];
-    status?: string | null;
+    status?: string[] | null;
   };
   message?: string | null;
 };
