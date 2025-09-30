@@ -124,6 +124,116 @@ export async function deleteInvoice(id: string) {
   revalidatePath("/dashboard/invoices");
 }
 
+const FormCustomerSchema = z.object({
+  id: z.string(),
+  customerName: z.string().min(6).max(150),
+  customerEmail: z.string().email().min(6).max(255),
+  customerImageUrl: z.string().max(255),
+});
+
+const CreateCustomer = FormCustomerSchema.omit({ id: true });
+const UpdateCustomer = FormCustomerSchema.omit({ id: true });
+
+export type CustomerState = {
+  errors?: {
+    customerName?: string[];
+    customerEmail?: string[];
+    customerImageUrl?: string[] | null;
+  };
+  message?: string | null;
+};
+
+export async function createCustomer(
+  prevState: CustomerState,
+  formData: FormData
+) {
+  // Validate form using Zod
+  const validatedFields = CreateCustomer.safeParse({
+    customerName: formData.get("name"),
+    customerEmail: formData.get("email"),
+    customerImageUrl: formData.get("imageUrl"),
+  });
+
+  // If form validation fails, return errors early. Otherwise, continue.
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Missing Fields. Failed to Create customer.",
+    };
+  }
+
+  // Prepare data for insertion into the database
+  const { customerName, customerEmail, customerImageUrl } =
+    validatedFields.data;
+  const date = new Date().toISOString().split("T")[0];
+
+  // Insert data into the database
+  try {
+    await sql`
+      INSERT INTO customers (name, email, image_url)
+      VALUES (${customerName}, ${customerEmail}, ${customerImageUrl}})
+    `;
+  } catch (error) {
+    // If a database error occurs, return a more specific error.
+    console.log(error);
+    return {
+      message: "Database Error: Failed to Create Invoice.",
+    };
+  }
+
+  // Revalidate the cache for the invoices page and redirect the user.
+  revalidatePath("/dashboard/customers");
+  redirect("/dashboard/customers");
+}
+
+export async function updateCustomer(
+  id: string,
+  prevState: CustomerState,
+  formData: FormData
+) {
+  // Validate form using Zod
+  const validatedFields = UpdateCustomer.safeParse({
+    customerName: formData.get("customerName"),
+    customerEmail: formData.get("customerEmail"),
+    customerImageUrl: formData.get("customerImageUrl"),
+  });
+
+  // If form validation fails, return errors early. Otherwise, continue.
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: "Missing Fields. Failed to Create Invoice.",
+    };
+  }
+
+  // Prepare data for insertion into the database
+  const { customerName, customerEmail, customerImageUrl } =
+    validatedFields.data;
+
+  try {
+    await sql`
+      UPDATE customers
+      SET name = ${customerName}, email = ${customerEmail}, image_url = ${customerImageUrl}
+      WHERE id = ${id}
+    `;
+  } catch (error) {
+    console.log(error);
+    return {
+      message: "Database Error: Failed to update Invoice",
+    };
+  }
+
+  revalidatePath("/dashboard/customers");
+  redirect("/dashboard/customers");
+}
+
+export async function deleteCustomer(id: string) {
+  await sql`
+    DELETE FROM customer WHERE id = ${id}
+  `;
+  revalidatePath("/dashboard/customers");
+}
+
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData
